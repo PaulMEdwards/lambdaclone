@@ -2,17 +2,25 @@
 
 ######
 # Variables!
-email=
-username=
-secretkey=
-branch_name=
-TLuser=
-TL5user=
-project_parent_path=
-project_prefix=
-subdir_weeks=false
-editor_bin=
 debug=false
+dryrun=false
+email=YourGitEmail
+username=YourUsername
+secretkey=YourGitSSHkey
+branch_name=DesiredBranchName
+TLuser=TLusername
+TL5user=5thDayTLusername
+project_parent_path=/Full/Unix/Style/Path/To/Project/Root
+subdir_sprint=Sprint
+subdir_week=Week
+fs_prefix_project=LS
+fs_sprint_prefix=Sp
+fs_week_prefix=Wk
+gh_prefix_project=LambdaSchool
+gh_sprint_prefix=Sprint
+gh_week_prefix=Week
+separator=_
+editor_bin=code
 ######
 
 if [ -z "$email" ] || [ -z "$secretkey" ] || [ -z "$branch_name" ] || [ -z "$project_parent_path" ]; then
@@ -20,15 +28,24 @@ if [ -z "$email" ] || [ -z "$secretkey" ] || [ -z "$branch_name" ] || [ -z "$pro
   exit
 else
   if [ "$debug" = "true" ]; then
-    echo "Email:        $email"
-    echo "Userame:      $username"
-    echo "Branch:       $branch_name"
-    echo "Path:         $project_parent_path"
-    echo "Prefix:       $project_prefix"
-    echo "Week Subdirs: $subdir_weeks"
-    echo "Editor bin:   $editor_bin"
-    echo "Primary TL:   $TLuser"
-    echo "5th Day TL:   $TL5user"
+    echo "debug:             $debug"
+    echo "dryrun:            $dryrun"
+    echo "Email:             $email"
+    echo "Userame:           $username"
+    echo "Branch:            $branch_name"
+    echo "Path:              $project_parent_path"
+    echo "Sprint Subdirs:    $subdir_sprint"
+    echo "Week Subdirs:      $subdir_week"
+    echo "FS Project Prefix: $fs_prefix_project"
+    echo "FR Sprint Prefix:  $fs_sprint_prefix"
+    echo "FR Week Prefix:    $fs_week_prefix"
+    echo "GH Project Prefix: $gh_prefix_project"
+    echo "GH Sprint Prefix:  $gh_sprint_prefix"
+    echo "GH Week Prefix:    $gh_week_prefix"
+    echo "Separator:         $separator"
+    echo "Editor bin:        $editor_bin"
+    echo "Primary TL:        $TLuser"
+    echo "5th Day TL:        $TL5user"
     echo ""
   fi
 fi
@@ -48,35 +65,68 @@ fi
 #  exit
 #fi
 
-#Append Week_## subdirectory to project parent path, if configured to do so
-if [ "$subdir_weeks" = "true" ]; then
-  if [ -r "${project_parent_path}/class_week" ]; then
-    class_week=$(<"${project_parent_path}/class_week")
-  fi
+if [ -r "$project_parent_path/class_sprint" ]; then
+  class_sprint=$(<"$project_parent_path/class_sprint")
+fi
+if [ -r "$project_parent_path/class_week" ]; then
+  class_week=$(<"$project_parent_path/class_week")
+fi
 
-  if [ -z $class_week ] || [ $class_week -lt 1 ]; then
-    read -p "Specify class week # using 2 digit format, i.e. 07: " class_week
-  else
-    read -p "Specify class week # using 2 digit format, or press <Enter> for $class_week: " new_class_week
-    class_week=${new_class_week:-$class_week}
-  fi
+if [ -z "$class_sprint" ]; then
+  read -r -p "Specify class Sprint # using 2 digit format, i.e. 04: " class_sprint
+else
+  read -r -p "Specify class Sprint # using 2 digit format, or press <Enter> for $class_sprint: " new_class_sprint
+  class_sprint=${new_class_sprint:-$class_sprint}
+fi
+if [ -z "$class_week" ]; then
+  read -r -p "Specify class Week # using 2 digit format, i.e. 07: " class_week
+else
+  read -r -p "Specify class Week # using 2 digit format, or press <Enter> for $class_week: " new_class_week
+  class_week=${new_class_week:-$class_week}
+fi
 
+if [ "$debug" = "true" ]; then
+  echo "class_sprint:   $class_sprint"
+fi
+echo "$class_sprint" > "$project_parent_path/class_sprint"
+if [ "$debug" = "true" ]; then
+  echo "class_week:   $class_week"
+fi
+echo "$class_week" > "$project_parent_path/class_week"
+
+#Append Sprint_## and/or Week_## subdirectories to project parent path, if configured to do so
+if [ ! -z $subdir_sprint ] && [ ! -z $subdir_week ]; then
+  project_parent_path="$project_parent_path/$subdir_sprint$separator$class_sprint/$subdir_week$separator$class_week"
+elif [ ! -z $subdir_sprint ]; then
+  project_parent_path="$project_parent_path/$subdir_sprint$separator$class_sprint"
+elif [ ! -z $subdir_week ]; then
+  project_parent_path="$project_parent_path/$subdir_week$separator$class_week"
+fi
+
+if [ "$debug" = "true" ]; then
+  echo -e "Path:         $project_parent_path\n"
+fi
+
+#Create directories if they doesn't already exist
+if [ ! -d "$project_parent_path" ]; then
   if [ "$debug" = "true" ]; then
-    echo "class_week:   $class_week"
+    echo -e "*** Command to be executed:"
   fi
-  echo $class_week > ${project_parent_path}/class_week
+  echo "Creating directory structure..."
+  echo "mkdir -p $project_parent_path"
 
-  project_parent_path=${project_parent_path}/Week_${class_week}
+  if [ ! "$dryrun" = "true" ]; then
+    mkdir -p "$project_parent_path"
+  fi
+fi
 
+#Switch to local machine project directory
+if [ ! -d "$project_parent_path" ]; then
   if [ "$debug" = "true" ]; then
-    echo "Path:         $project_parent_path"
-    echo ""
+    echo -e "*** Changing directory to:\n\"$project_parent_path\"\n"
   fi
-
-  #Create directory if it doesn't already exist
-  if [ ! -d "${project_parent_path}" ]; then
-    echo "Creating new directory for Week_$class_week..."
-    mkdir -p ${project_parent_path}
+  if [ ! "$dryrun" = "true" ]; then
+    cd "$project_parent_path" || exit
   fi
 fi
 
@@ -84,7 +134,7 @@ fi
 giturl=$1
 if [ -z "$1" ]; then
   echo -e "Input todays project git clone link (or press <Enter> to exit): "
-  read giturl
+  read -r giturl
 fi
 
 #Input sanity checks
@@ -108,131 +158,186 @@ reponame=${strip2##*/}
 giturluser=${strip2%/${reponame}}
 
 #Perform the fork
-printf "\nForking: $reponame from User: $giturluser\n"
+echo -e "\nForking: $reponame from User: $giturluser\n"
 if [ "$debug" = "true" ]; then
-  echo -e "*** Command to be executed:\ncurl -X POST -u \"${email}:${secretkey}\" \"https://api.github.com/repos/${giturluser}/${reponame}/forks\""
-  echo ""
-fi
-curl -X POST -u "${email}:${secretkey}" "https://api.github.com/repos/${giturluser}/${reponame}/forks"  &> /dev/null
-
-#Prepend Prefix to remote & local repositories, if specified
-if [ ! -z $project_prefix ]; then
-  new_reponame=$project_prefix$reponame
-
-  #remote first
-  if [ "$debug" = "true" ]; then
-    echo -e "*** Command to be executed:\ncurl -i -u \"${email}:${secretkey}\" -X PATCH -d \"{\"name\":\"${new_reponame}\"}\" \"https://api.github.com/repos/${username}/${reponame}\""
-    echo ""
-  fi
-  curl -i -u "${email}:${secretkey}" -X PATCH -d "{\"name\":\"${new_reponame}\"}" "https://api.github.com/repos/${username}/${reponame}"  &> /dev/null
-
-  #local
-  if [ "$debug" = "true" ]; then
-    echo -e "*** Command to be executed:\nmv \"$reponame\" \"$project_prefix$reponame\""
-    echo ""
-  fi
-  mv "$reponame" "$project_prefix$reponame"
-
-  #update variable
-  reponame=$new_reponame
+  echo -e "*** Command to be executed:\ncurl -X POST -u \"$email:$secretkey\" \"https://api.github.com/repos/$giturluser/$reponame/forks\"\n"
 fi
 
-#Switch to local machine project directory
-if [ "$debug" = "true" ]; then
-  echo -e "*** Changing directory to:\n\"$project_parent_path\""
-  echo ""
+if [ ! "$dryrun" = "true" ]; then
+  curl -X POST -u "$email:$secretkey" "https://api.github.com/repos/$giturluser/$reponame/forks"  &> /dev/null
 fi
-cd "$project_parent_path"
 
 #Clone forked project into a subdirectory with the repository name within the current directory
-if [ -d "${reponame}" ]; then
+if [ -d "$reponame" ]; then
   echo -e "WARNING: Repository directory \"$reponame\" already exists!"
-  read -p "How do you want to proceed? [D]elete, [R]ename, E[x]it: " choice
+  read -r -p "How do you want to proceed? [D]elete, [R]ename, E[x]it: " choice
   case "$choice" in
   [dD])
-      echo "Deleting \"$reponame\"..."
+    echo "Deleting \"$reponame\"..."
+    if [ ! "$dryrun" = "true" ]; then
       rm -rf "$reponame"
-      ;;
+    fi
+    ;;
   [rR])
-      read -p "Specify new directory name [$reponame.backup]: " new_reponame
-      new_reponame=${new_reponame:-"$reponame.backup"}
-      if [ "$debug" = "true" ]; then
-        echo -e "*** New repo name: \"$reponame.backup\""
-        echo ""
-      fi
-      mv "$reponame" "$new_reponame"
-      ;;
+    read -r -p "Specify new directory name [$reponame.backup]: " new_fs_reponame
+    new_fs_reponame=${new_fs_reponame:-"$reponame.backup"}
+    if [ "$debug" = "true" ]; then
+      echo -e "*** New repo name: \"$new_fs_reponame\"\n"
+    fi
+    if [ ! "$dryrun" = "true" ]; then
+      mv "$reponame" "$new_fs_reponame"
+    fi
+    ;;
   *)
-      echo "Exiting..."
-      exit
-      ;;
+    echo "Exiting..."
+    exit
+    ;;
   esac
 fi
 
 if [ "$debug" = "true" ]; then
-  echo -e "*** Command to be executed:\ngit clone git@github.com:${username}/${reponame}.git"
-  echo ""
+  echo -e "*** Command to be executed:\ngit clone git@github.com:$username/$reponame.git\n"
 fi
-git clone git@github.com:${username}/${reponame}.git
+if [ ! "$dryrun" = "true" ]; then
+  git clone "git@github.com:$username/$reponame.git"
+fi
+
+fs_reponame=$reponame
+#Prepend Prefix to LOCAL repository, if specified
+if [ ! -z $fs_prefix_project ]; then
+  #Parse
+  if [ ! -z "$fs_sprint_prefix" ] && [ ! -z "$fs_week_prefix" ]; then
+    new_fs_reponame=$fs_prefix_project$separator$fs_sprint_prefix$class_sprint$separator$fs_week_prefix$class_week$separator$fs_reponame
+  elif [ ! -z "$fs_sprint_prefix" ]; then
+    new_fs_reponame=$fs_prefix_project$separator$fs_sprint_prefix$class_sprint$separator$fs_reponame
+  elif [ ! -z "$fs_week_prefix" ]; then
+    new_fs_reponame=$fs_prefix_project$separator$fs_week_prefix$class_week$separator$fs_reponame
+  else
+    new_fs_reponame=$fs_prefix_project$separator$fs_reponame
+  fi
+  if [ "$debug" = "true" ]; then
+    echo -e "*** New FS repo name: \"$new_fs_reponame\"\n"
+  fi
+
+  #Perform change
+  if [ "$debug" = "true" ]; then
+    echo -e "*** Command to be executed:\nmv \"$fs_reponame\" \"$project_parent_path/$new_fs_reponame\"\n"
+  fi
+  if [ ! "$dryrun" = "true" ]; then
+    mv "$fs_reponame" "$project_parent_path/$new_fs_reponame"
+  fi
+
+  #Update variable
+  fs_reponame=$new_fs_reponame
+fi
 
 #Switch to local repository directory created in above clone
 if [ "$debug" = "true" ]; then
-  echo -e "*** Changing directory to:\n\"$reponame\""
-  echo ""
+  echo -e "*** Changing directory to:\n\"$project_parent_path/$fs_reponame\"\n"
 fi
-cd "$reponame"
+if [ ! "$dryrun" = "true" ]; then
+  cd "$project_parent_path/$fs_reponame" || exit
+fi
+
+gh_reponame=$reponame
+#Prepend Prefix to REMOTE repository, if specified
+if [ ! -z $gh_prefix_project ]; then
+  #Parse
+  if [ ! -z "$gh_sprint_prefix" ] && [ ! -z "$gh_week_prefix" ]; then
+    new_gh_reponame=$gh_prefix_project$separator$gh_sprint_prefix$class_sprint$separator$gh_week_prefix$class_week$separator$gh_reponame
+  elif [ ! -z "$gh_sprint_prefix" ]; then
+    new_gh_reponame=$gh_prefix_project$separator$gh_sprint_prefix$class_sprint$separator$gh_reponame
+  elif [ ! -z "$gh_week_prefix" ]; then
+    new_gh_reponame=$gh_prefix_project$separator$gh_week_prefix$class_week$separator$gh_reponame
+  else
+    new_gh_reponame=$gh_prefix_project$separator$gh_reponame
+  fi
+  if [ "$debug" = "true" ]; then
+    echo -e "*** New GH repo name: \"$new_gh_reponame\"\n"
+  fi
+
+  #Perform change
+  if [ "$debug" = "true" ]; then
+    echo -e "*** Command to be executed:\ncurl -i -u \"$email:$secretkey\" -X PATCH -d \"{\"name\":\"$new_gh_reponame\"}\" \"https://api.github.com/repos/$username/$gh_reponame\"\n"
+  fi
+  if [ ! "$dryrun" = "true" ]; then
+    curl -i -u "$email:$secretkey" -X PATCH -d "{\"name\":\"$new_gh_reponame\"}" "https://api.github.com/repos/$username/$gh_reponame"  &> /dev/null
+  fi
+
+  #Update variable
+  gh_reponame=$new_gh_reponame
+fi
 
 #Create local & remote custom branches
 if [ "$debug" = "true" ]; then
-  echo -e "*** Commands to be executed:\ngit checkout -b \"${branch_name}\"\ngit push --set-upstream origin ${branch_name}"
-  echo ""
+  echo -e "*** Commands to be executed:\ngit checkout -b \"$branch_name\"\ngit push --set-upstream origin \"$branch_name\"\n"
 fi
-git checkout -b "${branch_name}"
-git push --set-upstream origin ${branch_name}
+if [ ! "$dryrun" = "true" ]; then
+  git checkout -b "$branch_name"
+  git push --set-upstream origin "$branch_name"
+fi
 
 #Set remote default branch to custom branch
 if [ "$debug" = "true" ]; then
-  echo -e "*** Command to be executed:\ncurl -i -u \"${email}:${secretkey}\" -X PATCH -d \"{\"name\":\"${reponame}\",\"default_branch\":\"${branch_name}\"}\" \"https://api.github.com/repos/${username}/${reponame}\""
-  echo ""
+  echo -e "*** Command to be executed:\ncurl -i -u \"$email:$secretkey\" -X PATCH -d \"{\"name\":\"$gh_reponame\",\"default_branch\":\"$branch_name\"}\" \"https://api.github.com/repos/$username/$gh_reponame\"\n"
 fi
-curl -i -u "${email}:${secretkey}" -X PATCH -d "{\"name\":\"${reponame}\",\"default_branch\":\"${branch_name}\"}" "https://api.github.com/repos/${username}/${reponame}"  &> /dev/null
+if [ ! "$dryrun" = "true" ]; then
+  curl -i -u "$email:$secretkey" -X PATCH -d "{\"name\":\"$gh_reponame\",\"default_branch\":\"$branch_name\"}" "https://api.github.com/repos/$username/$gh_reponame"  &> /dev/null
+fi
 
 #Add Primary Team Lead as collaborator
 if [[ ! -z "$TLuser" ]]; then
-  echo "adding ${TLuser} as collaborator"
+  echo "adding Team Lead ($TLuser) as collaborator"
 
   if [ "$debug" = "true" ]; then
-    echo -e "*** Command to be executed:\ncurl -i -u \"${email}:${secretkey}\" -X PUT -d \"\" \"https://api.github.com/repos/${username}/${reponame}/collaborators/${TLuser}\""
-    echo ""
+    echo -e "*** Command to be executed:\ncurl -i -u \"$email:$secretkey\" -X PUT -d \"\" \"https://api.github.com/repos/$username/$gh_reponame/collaborators/${TLuser}\"\n"
   fi
-  curl -i -u "${email}:${secretkey}" -X PUT -d "" "https://api.github.com/repos/${username}/${reponame}/collaborators/${TLuser}"  &> /dev/null
+  if [ ! "$dryrun" = "true" ]; then
+    curl -i -u "$email:$secretkey" -X PUT -d "" "https://api.github.com/repos/$username/$gh_reponame/collaborators/$TLuser"  &> /dev/null
+  fi
 else
   echo "no TL string provided, no collaborator added"
 fi
 
 #Optionally add 5th Day Team Lead as collaborator
-if [[ ! -z "$TL5user" ]]; then
-  read -p "Add 5th Day Team Lead as collaborator? [Y]es, [N]o (default): " choice
+if [[ ! -z "$TL5user" ]] && [[ "$TL5user" != "$TLuser" ]]; then
+  read -r -p "Add 5th Day Team Lead ($TL5user) as collaborator? [Y]es, [N]o (default): " choice
   case "$choice" in
   [yY])
-      echo "adding ${TL5user} as collaborator"
+    echo "adding Team Lead ($TL5user) as collaborator"
 
-      if [ "$debug" = "true" ]; then
-        echo -e "*** Command to be executed:\ncurl -i -u \"${email}:${secretkey}\" -X PUT -d \"\" \"https://api.github.com/repos/${username}/${reponame}/collaborators/${TL5user}\""
-        echo ""
-      fi
-      curl -i -u "${email}:${secretkey}" -X PUT -d "" "https://api.github.com/repos/${username}/${reponame}/collaborators/${TL5user}"  &> /dev/null
-      ;;
+    if [ "$debug" = "true" ]; then
+      echo -e "*** Command to be executed:\ncurl -i -u \"$email:$secretkey\" -X PUT -d \"\" \"https://api.github.com/repos/$username/$gh_reponame/collaborators/$TL5user\"\n"
+    fi
+    if [ ! "$dryrun" = "true" ]; then
+      curl -i -u "$email:$secretkey" -X PUT -d "" "https://api.github.com/repos/$username/$gh_reponame/collaborators/$TL5user"  &> /dev/null
+    fi
+    ;;
   *)
-      #Do nothing
-      ;;
+    #Do nothing
+    ;;
   esac
+  echo ""
 fi
 
 #Print URL to created remote repository
-printf "\nhttps://github.com/$username/$reponame/\n"
+echo -e "Your new repository:\nhttps://github.com/$username/$gh_reponame/\n"
 
 #Launch editor opening local repository, if configured
 if [[ ! -z "$editor_bin" ]]; then
-  ${editor_bin} ${project_parent_path}/${reponame}
+  read -r -p "Launch configured editor (\"$editor_bin\")? [Y]es, [N]o (default): " choice
+  case "$choice" in
+  [yY])
+    if [ "$debug" = "true" ]; then
+      echo -e "*** Command to be executed:\n\"$editor_bin\" \"$project_parent_path/$fs_reponame\"\n"
+    fi
+    if [ ! "$dryrun" = "true" ]; then
+      "$editor_bin" "$project_parent_path/$fs_reponame"
+    fi
+    ;;
+  *)
+    #Do nothing
+    ;;
+  esac
+  echo ""
 fi
